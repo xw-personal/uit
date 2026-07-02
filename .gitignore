@@ -1,0 +1,45 @@
+# ===== Build output =====
+target/
+build/
+out/
+!**/src/main/**/target/
+!**/src/test/**/target/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# ===== Maven wrapper jar =====
+.mvn/wrapper/maven-wrapper.jar
+
+# ===== IDE =====
+.idea/
+*.iws
+*.iml
+*.ipr
+.vscode/
+.settings/
+.classpath
+.project
+.springBeans
+.sts4-cache/
+.apt_generated
+.factorypath
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+
+# ===== Logs / runtime =====
+*.log
+*.lock
+
+# ===== Secrets / local auth state (never commit) =====
+auth.json
+auth-state.json
+*.auth.json
+.env
+.env.*
+application-local.yml
+application-secret.yml
+
+# ===== Spring Boot =====
+HELP.md
