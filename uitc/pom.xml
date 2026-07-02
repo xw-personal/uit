@@ -58,6 +58,14 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
+			<exclusions>
+				<!-- android-json 把 org.json.JSONArray 伪装成同名类但不实现 Iterable，
+				     会抢占真正 org.json:json 的 JSONArray，导致运行时 NoSuchMethodError: forEach -->
+				<exclusion>
+					<groupId>com.vaadin.external.google</groupId>
+					<artifactId>android-json</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.mybatis.spring.boot</groupId>
@@ -95,7 +103,7 @@
 		<dependency>
 			<groupId>org.json</groupId>
 			<artifactId>json</artifactId>
-			<version>20231013</version>
+			<version>20250517</version>
 		</dependency>
 
 		<dependency>

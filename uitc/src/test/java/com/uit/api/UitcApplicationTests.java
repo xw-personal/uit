@@ -1,4 +1,4 @@
-package com.uit.uitc;
+package com.uit.api;
 
 import java.nio.file.Path;
 import java.util.List;
@@ -7,6 +7,7 @@ import java.util.Map;
 import org.json.JSONObject;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import com.microsoft.playwright.APIRequest;
@@ -21,6 +22,8 @@ import com.microsoft.playwright.Playwright;
 import com.microsoft.playwright.options.LoadState;
 import com.microsoft.playwright.options.RequestOptions;
 import com.uit.agentcore.tools.PlaywrightAoyaExecutionEngine;
+import com.uit.api.service.impl.TasksServiceImpl;
+import com.uit.api.vo.LoginStatus;
 
 import dev.langchain4j.community.browser.playwright.PlaywrightBrowserExecutionEngine;
 import dev.langchain4j.community.tool.browseruse.BrowserUseTool;
@@ -164,6 +167,16 @@ class UitcApplicationTests {
                         );
                 
                 return context;
+        }
+
+        @Autowired
+        private TasksServiceImpl tasksService;
+        
+        @Test
+        void testLoginStatus(){
+                LoginStatus loginStatus = tasksService.loginStatus();
+                System.out.println("登录状态: " + loginStatus.getStatus());
+                System.out.println("登录到期时间: " + loginStatus.getExpireTime());
         }
 
 }
