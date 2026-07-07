@@ -8,6 +8,7 @@ import org.json.JSONObject;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import com.microsoft.playwright.APIRequest;
@@ -22,8 +23,15 @@ import com.microsoft.playwright.Playwright;
 import com.microsoft.playwright.options.LoadState;
 import com.microsoft.playwright.options.RequestOptions;
 import com.uit.agentcore.tools.PlaywrightAoyaExecutionEngine;
+import com.uit.api.controller.UserController;
+import com.uit.api.entry.LoginUser;
+import com.uit.api.entry.User;
+import com.uit.api.service.UserService;
 import com.uit.api.service.impl.TasksServiceImpl;
+import com.uit.api.utils.UserContext;
 import com.uit.api.vo.LoginStatus;
+import com.uit.api.vo.UserLoginVO;
+import com.uit.api.websocket.WebsocketService;
 
 import dev.langchain4j.community.browser.playwright.PlaywrightBrowserExecutionEngine;
 import dev.langchain4j.community.tool.browseruse.BrowserUseTool;
@@ -32,9 +40,10 @@ import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
 import dev.langchain4j.service.AiServices;
+import lombok.extern.slf4j.Slf4j;
 
 
-
+@Slf4j
 @SpringBootTest
 class UitcApplicationTests {
 
@@ -179,4 +188,119 @@ class UitcApplicationTests {
                 System.out.println("登录到期时间: " + loginStatus.getExpireTime());
         }
 
+        @Test
+        void testGetLoginDom(){
+                try (Playwright playwright = Playwright.create()) {
+                        BrowserType.LaunchOptions options = new BrowserType.LaunchOptions()
+                                .setHeadless(false)      // 显示浏览器窗口
+                                .setChannel("chrome")    // 使用 Chrome
+                                .setSlowMo(500);         // 放慢操作，便于观察
+                        Browser browser = playwright.chromium().launch(options);
+                        BrowserContext context = browser.newContext(
+                                new Browser.NewContextOptions().setIgnoreHTTPSErrors(true)
+                                );
+                        Page page = context.newPage();
+                        page.navigate("https://10.10.27.2/ui/#/login");
+                        page.waitForLoadState(LoadState.NETWORKIDLE);
+                        List<Map<String,Object>> candidates = (List<Map<String,Object>>) page.evaluate("""
+                                        () => {
+                                        // —— 辅助函数必须定义在这里 ——
+                                        const getXPath = (el) => {
+                                                if (el.nodeType !== 1) return '';
+                                                if (el.id) return `//*[@id="${el.id}"]`;
+                                                const parts = [];
+                                                let node = el;
+                                                while (node && node.nodeType === 1 && node !== document.documentElement) {
+                                                let idx = 1, sib = node.previousElementSibling;
+                                                while (sib) {
+                                                if (sib.tagName === node.tagName) idx++;
+                                                sib = sib.previousElementSibling;
+                                                }
+                                                parts.unshift(`${node.tagName.toLowerCase()}[${idx}]`);
+                                                node = node.parentElement;
+                                                }
+                                                return '/' + parts.join('/');
+                                        };
+                                        const getCss = (el) => {   // 顺带给个 CSS 路径,比 xpath 更稳
+                                                if (el.id) return '#' + CSS.escape(el.id);
+                                                const parts = [];
+                                                let node = el;
+                                                while (node && node.nodeType === 1 && node !== document.documentElement) {
+                                                let sel = node.tagName.toLowerCase();
+                                                if (node.parentElement) {
+                                                const same = [...node.parentElement.children].filter(c => c.tagName === node.tagName);
+                                                if (same.length > 1) sel += `:nth-child(${[...node.parentElement.children].indexOf(node)+1})`;
+                                                }
+                                                parts.unshift(sel);
+                                                node = node.parentElement;
+                                                }
+                                                return parts.join(' > ');
+                                        };
+
+                                        return [...document.querySelectorAll(
+                                                'input, button, a, img, canvas, [role=button], [role=img], textarea, select')]
+                                                .filter(e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; })
+                                                .map(e => ({
+                                                tag: e.tagName.toLowerCase(),
+                                                type: e.type || null,
+                                                id: e.id || null,
+                                                name: e.name || null,
+                                                className: typeof e.className === 'string' ? e.className : null,
+                                                placeholder: e.placeholder || null,
+                                                alt: e.alt || null,
+                                                src: (e.src || '').slice(0, 80),
+                                                text: (e.innerText || '').trim().slice(0, 30) || null,
+                                                ariaLabel: e.getAttribute('aria-label') || null,
+                                                role: e.getAttribute('role') || null,
+                                                xpath: getXPath(e),
+                                                css: getCss(e)
+                                                }));
+                                        }
+                                        """);
+                        System.out.println("可交互元素: " + candidates);
+                } catch (Exception e) {
+                        e.printStackTrace();
+                }
+        }
+
+        @Value("${LLM_API_KEY}")
+        private String apiKey;
+
+        @Test
+        void testKey(){
+                System.out.println("LLM_API_KEY: " + apiKey);
+        }
+        @Test
+        void testLoginAnalyze(){
+                tasksService.login("https://10.10.19.210/login");
+        }
+
+        @Autowired
+        private UserService userService;
+
+        @Test
+        void testRegister(){
+                User user = new User();
+                user.setAccount("admin");
+                user.setPassword("123456");
+                user.setUsername("admin");
+                userService.register(user);
+        }
+
+        @Test
+        void testLogin(){
+                User user = new User();
+                user.setAccount("admin");
+                user.setPassword("123456");
+                UserLoginVO userVo= userService.login(user);
+                log.info("userVo: "+userVo);
+        }
+
+        @Autowired
+        private WebsocketService websocketService;
+
+        @Test
+        void testWebSocketpush(){
+                websocketService.pushAnalysisResult(UserContext.getUser().getId(), "测试发送消息");
+        }
 }

@@ -1,23 +1,23 @@
 package com.uit.agentcore;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
 import com.uit.agentcore.agents.CaseDesignerAgent;
+import com.uit.agentcore.agents.ExploerAnalyzer;
 import com.uit.agentcore.agents.ScriptAgent;
 import com.uit.agentcore.agents.SequenceAgents;
 import com.uit.agentcore.agents.UIExplorerAgent;
 
 import dev.langchain4j.agentic.AgenticServices;
 import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.service.AiServices;
 
-@Service
+@Configuration
 public class SequenceAgentService {
 
-    @Autowired
-    private ChatModel chatModel;
-
-    public SequenceAgents SequenceAgentServiceBuilder(){
+    @Bean
+    public SequenceAgents SequenceAgentServiceBuilder(ChatModel chatModel){
         UIExplorerAgent uiExplorer = AgenticServices
                 .agentBuilder(UIExplorerAgent.class)
                 .chatModel(chatModel)
@@ -42,4 +42,13 @@ public class SequenceAgentService {
             .outputKey("story")
             .build();
     }
+
+    @Bean
+    public ExploerAnalyzer analyzer(ChatModel chatModel){
+        return AiServices
+                .builder(ExploerAnalyzer.class)
+                .chatModel(chatModel)
+                .build();
+    }
+
 }

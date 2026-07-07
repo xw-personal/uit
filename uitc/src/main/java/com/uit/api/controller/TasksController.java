@@ -2,8 +2,10 @@ package com.uit.api.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.uit.api.entry.LoginUser;
 import com.uit.api.entry.Result;
 import com.uit.api.entry.User;
 import com.uit.api.service.TasksService;
@@ -21,15 +23,15 @@ public class TasksController {
     private TasksService tasksService;
 
     @PostMapping
-    public String postMethodName(@RequestBody User user) {
+    public String postMethodName(@RequestBody LoginUser user) {
         //TODO: process POST request
         tasksService.processTask(user);
         return "";
     }
 
-    @PostMapping("/login")
-    public Result<Void> login(@RequestBody User user) {
-        tasksService.login(user);
+    @PostMapping("/url")
+    public Result<Void> loginUrl(@RequestParam String url) {
+        tasksService.login(url);
         return Result.success();
     }
     

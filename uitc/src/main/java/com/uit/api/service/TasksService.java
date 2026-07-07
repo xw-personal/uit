@@ -1,5 +1,6 @@
 package com.uit.api.service;
 
+import com.uit.api.entry.LoginUser;
 import com.uit.api.entry.Result;
 import com.uit.api.entry.User;
 import com.uit.api.vo.LoginStatus;
@@ -7,9 +8,9 @@ import com.uit.api.vo.LoginStatus;
 public interface TasksService {
 
 
-    void processTask(User entity);
+    void processTask(LoginUser entity);
 
-    void login(User user);
+    void login(String url);
 
     LoginStatus loginStatus();
 }

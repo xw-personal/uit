@@ -1,13 +1,11 @@
 package com.uit.api.entry;
 
-import java.util.UUID;
-
 import lombok.Data;
 
 @Data
-public class User {
-    private UUID id;
+public class LoginUser {
+    private String url;
     private String account;
-    private String username;
     private String password;
+    private String captcha;
 }

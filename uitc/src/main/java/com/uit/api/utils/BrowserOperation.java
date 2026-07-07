@@ -4,12 +4,13 @@ import java.nio.file.Path;
 
 import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.Page;
+import com.uit.api.entry.LoginUser;
 import com.uit.api.entry.User;
 
 public class BrowserOperation {
 
 
-    public static void login(User user, BrowserContext context) {
+    public static void login(LoginUser user, BrowserContext context) {
         // Implement the login logic here using the provided user credentials
         // For example, you can use Playwright to navigate to the login page, fill in the credentials, and submit the form
         // After successful login, return the updated BrowserContext
