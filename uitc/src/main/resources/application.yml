@@ -2,7 +2,7 @@ spring:
   datasource:
     url: jdbc:postgresql://${DB_HOST:127.0.0.1}:5432/${DB_NAME:test_db}
     username: ${DB_USER:pguser}
-    password: ${DB_PASSWORD:change-me}
+    password: ${DB_PASSWORD:uitc}
     driver-class-name: org.postgresql.Driver
     hikari:
       schema: uitc
@@ -15,6 +15,14 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
+
+  data:
+    redis:
+      host: ${DB_HOST:127.0.0.1}
+      password: ${DB_PASSWORD:uitc}
+      port: 6379
+      database: 0
+      timeout: 5000
 
 langchain4j:
   open-ai:

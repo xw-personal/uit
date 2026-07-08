@@ -51,12 +51,10 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-security</artifactId>
 		</dependency>
-		<!-- Source: https://mvnrepository.com/artifact/org.springframework.data/spring-data-redis -->
+		<!-- Redis: starter 自带 Lettuce 客户端,触发 RedisAutoConfiguration 建 RedisConnectionFactory -->
 		<dependency>
-			<groupId>org.springframework.data</groupId>
-			<artifactId>spring-data-redis</artifactId>
-			<version>4.1.0</version>
-			<scope>compile</scope>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-redis</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.postgresql</groupId>
@@ -139,12 +137,6 @@
 			<groupId>dev.langchain4j</groupId>
 			<artifactId>langchain4j-open-ai-spring-boot-starter</artifactId>
 			<version>1.15.0-beta25</version>
-		</dependency>
-		<!--JSON-->
-		<dependency>
-			<groupId>org.json</groupId>
-			<artifactId>json</artifactId>
-			<version>20250517</version>
 		</dependency>
 
 		<dependency>

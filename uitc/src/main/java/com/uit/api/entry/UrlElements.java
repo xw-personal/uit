@@ -7,12 +7,12 @@ import lombok.Data;
 
 
 @Data
-public class UrlElements {
+public class UrlElements<T> {
     private String type;
     
     private String taskId;
 
-    private List<UIComponent> components;
+    private List<T> components;
     
     @Data
     public static class UIComponent {

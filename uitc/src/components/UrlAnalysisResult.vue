@@ -14,14 +14,6 @@ const err = ref('')
 
 const components = computed(() => props.data?.components || [])
 
-const typeLabel = {
-  PASSWORD_ONLY: '账号密码',
-  PASSWORD_CAPTCHA: '账号密码 + 图形验证码',
-  SMS: '手机短信',
-  QRCODE: '二维码扫码',
-  SLIDER: '滑块/点选'
-}
-
 // 新任务到来时重置表单
 watch(() => props.data?.taskId, () => {
   Object.keys(formData).forEach(k => delete formData[k])
@@ -64,7 +56,6 @@ async function onSubmit() {
     <template v-else>
       <div class="kv"><span class="k">登录类型</span>
         <span class="tag">{{ data.type }}</span>
-        <span class="v">{{ typeLabel[data.type] || data.type }}</span>
       </div>
       <div class="kv"><span class="k">taskId</span><span class="v mono">{{ data.taskId }}</span></div>
 
@@ -99,7 +90,6 @@ async function onSubmit() {
 .empty { color: var(--muted); }
 .kv { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
 .kv .k { color: var(--muted); min-width: 64px; }
-.kv .v { color: var(--text); }
 .kv .tag { background: var(--accent); color: #fff; padding: 1px 8px; border-radius: 4px; font-size: 12px; }
 .mono { font-family: ui-monospace, Consolas, monospace; }
 h3 { margin: 16px 0 8px; font-size: 13px; color: var(--muted); }

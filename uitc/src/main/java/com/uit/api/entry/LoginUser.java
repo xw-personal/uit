@@ -6,6 +6,8 @@ import lombok.Data;
 public class LoginUser {
     private String url;
     private String account;
+    private String phone;
+    private String smsCode;
     private String password;
     private String captcha;
 }

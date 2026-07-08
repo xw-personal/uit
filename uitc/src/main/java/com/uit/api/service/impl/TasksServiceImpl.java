@@ -9,16 +9,14 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-import org.apache.ibatis.javassist.bytecode.analysis.Analyzer;
-import org.json.JSONObject;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.fasterxml.jackson.databind.JsonNode;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -29,22 +27,20 @@ import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
-import com.microsoft.playwright.Frame.GetByRoleOptions;
-import com.microsoft.playwright.options.AriaRole;
 import com.microsoft.playwright.options.LoadState;
 import com.microsoft.playwright.options.ScreenshotType;
 import com.microsoft.playwright.options.WaitForSelectorState;
 import com.uit.agentcore.agents.ExploerAnalyzer;
 import com.uit.agentcore.agents.ExploerAnalyzer.ElementRef;
 import com.uit.agentcore.agents.ExploerAnalyzer.LoginAnalysis;
+import com.uit.api.common.TaskPendingManager;
 import com.uit.api.entry.LoginUser;
-import com.uit.api.entry.Result;
 import com.uit.api.entry.UrlElements;
 import com.uit.api.entry.UrlElements.UIComponent;
-import com.uit.api.entry.User;
 import com.uit.api.handler.BusinessException;
 import com.uit.api.service.TasksService;
 import com.uit.api.utils.BrowserOperation;
+import com.uit.api.utils.RedisKeyPrefix;
 import com.uit.api.utils.UserContext;
 import com.uit.api.vo.LoginStatus;
 import com.uit.api.websocket.WebsocketService;
@@ -57,10 +53,14 @@ public class TasksServiceImpl implements TasksService{
 
     private final ExploerAnalyzer analyzer;
     private final WebsocketService websocketService;
+    private final RedisTemplate<String,Object> redisTemplate;
+    private final TaskPendingManager taskPendingManager;
 
-    public TasksServiceImpl(ExploerAnalyzer analyzer,WebsocketService websocketService) {
+    public TasksServiceImpl(ExploerAnalyzer analyzer,WebsocketService websocketService,RedisTemplate<String,Object> redisTemplate,TaskPendingManager taskPendingManager) {
         this.analyzer = analyzer;
         this.websocketService = websocketService;
+        this.redisTemplate = redisTemplate;
+        this.taskPendingManager = taskPendingManager;
     }
 
 
@@ -82,11 +82,12 @@ public class TasksServiceImpl implements TasksService{
     }
 
     @Override
-    public void login(String url) {
+    public void analyzer(String url) {
         String taskId = UUID.randomUUID().toString();
+        CompletableFuture<LoginUser> future = new CompletableFuture<>();
         log.info("开始处理任务，taskId: " + taskId);
+        String userId = UserContext.getUser().getId();
         CompletableFuture.runAsync(() ->{
-            CompletableFuture<LoginUser> future = new CompletableFuture<>();
             try (Playwright playwright = Playwright.create()){
                 BrowserType.LaunchOptions options = new BrowserType.LaunchOptions()
                     .setHeadless(true)      // 隐藏浏览器窗口
@@ -103,10 +104,12 @@ public class TasksServiceImpl implements TasksService{
                 String elementsJson = this.getElements(page);
                 log.info("开始分析登录页...");
                 LoginAnalysis loginAnalysis = analyzer.analyze(elementsJson);
-                String userId = UserContext.getUser().getId();
+                
                 log.info("登录页分析结果："+loginAnalysis);
-                UrlElements urlElement = new UrlElements();
+                UrlElements<UIComponent> urlElement = new UrlElements<UIComponent>();
                 urlElement.setTaskId(taskId);
+                redisTemplate.opsForHash().put(RedisKeyPrefix.TASK_STATE + taskId, "LoginType", loginAnalysis.loginType());
+                redisTemplate.opsForHash().put(RedisKeyPrefix.TASK_STATE + taskId, "status", 1);
                 switch (loginAnalysis.loginType()) {
                     case PASSWORD_ONLY:                       
                         urlElement.setType("PASSWORD_ONLY");
@@ -117,6 +120,7 @@ public class TasksServiceImpl implements TasksService{
                             )
                         );
                         websocketService.pushAnalysisResult(userId, urlElement);
+                        
                         break;
                     case PASSWORD_CAPTCHA:
                         String png = this.captchaImageByXpath(page,loginAnalysis.fields().captchaImage());
@@ -134,6 +138,14 @@ public class TasksServiceImpl implements TasksService{
                         websocketService.pushAnalysisResult(userId, urlElement);
                         break;
                     case SMS:
+                        urlElement.setType("SMS");
+                        urlElement.setComponents(
+                            List.of(
+                                new UIComponent("account","input"),
+                                new UIComponent("password","input")
+                            )
+                        );
+                        websocketService.pushAnalysisResult(userId, urlElement);
                         break;
                     case QRCODE:
                         
@@ -146,12 +158,24 @@ public class TasksServiceImpl implements TasksService{
                 }
                 LoginUser users = new LoginUser();
                 try {
+                    taskPendingManager.put(taskId, future);
                     users = future.get();
                 } catch (Exception e) {
                     // TODO: handle exception
                 }
                 users.setUrl(url);
                 loginAnalysis.loginType().login(page, loginAnalysis.fields(), users);
+                String stateJson = context.storageState();
+                redisTemplate.opsForValue().set(RedisKeyPrefix.LOGIN_AUTH + userId, stateJson);
+                redisTemplate.opsForHash().put(RedisKeyPrefix.TASK_STATE + taskId, "status", 0);
+                UrlElements<Integer> urlElementStatus = new UrlElements<Integer>();
+                urlElementStatus.setType("LOGIN_STATUS");
+                urlElementStatus.setComponents(
+                            List.of(0)
+                        );
+                websocketService.pushAnalysisResult(userId, urlElementStatus);
+            }catch (Exception e) {
+                log.error("异步任务执行失败", e);
             }
             
         });
@@ -174,34 +198,33 @@ public class TasksServiceImpl implements TasksService{
         // For example, you can use Playwright to navigate to a page that requires authentication and check if the user is logged in
         // Return a LoginStatus object indicating the login status
         LoginStatus loginStatus = new LoginStatus();
+        String userId = UserContext.getUser().getId();
         try {
-            Path authPath = Paths.get("auth.json");
+            Path authPath = Paths.get(userId+"_auth.json");
             String authData = Files.readString(authPath);
-            JSONObject jsonObject = new JSONObject(authData);
-            jsonObject.getJSONArray("origins").forEach(orgin->{
-                JSONObject origin = (JSONObject) orgin;
-                origin.getJSONArray("localStorage").forEach(local -> {
-                    JSONObject localStorage = (JSONObject) local;
-                    if (localStorage.getString("name").equals("refresh_expire_time")){
-                        String expires = localStorage.getString("value");
+            JsonNode root = new ObjectMapper().readTree(authData);
+            for (JsonNode origin : root.path("origins")) {
+                loginStatus.setUrl(origin.path("origin").asText());
+                for (JsonNode ls : origin.path("localStorage")) {
+                    if ("refresh_expire_time".equals(ls.path("name").asText())) {
+                        String expires = ls.path("value").asText();
                         long timestamp = Long.parseLong(expires);
                         // 自动判断：如果长度 >= 13 视为毫秒，否则视为秒
                         Instant instant = expires.length() >= 13
                                 ? Instant.ofEpochMilli(timestamp)
                                 : Instant.ofEpochSecond(timestamp);
                         LocalDateTime dateTime = LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
-                        if (dateTime.isBefore(LocalDateTime.now())){
+                        if (dateTime.isBefore(LocalDateTime.now())) {
                             loginStatus.setExpireTime("登录到期，请重新登录");
                             loginStatus.setStatus((byte) 0);
-                        }else{
+                        } else {
                             String expireTime = dateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
                             loginStatus.setExpireTime(expireTime);
                             loginStatus.setStatus((byte) 1);
                         }
-                        
                     }
-                });
-            });
+                }
+            }
         } catch (NoSuchFileException  e) {
             // Handle the case where the auth.json file does not exist
             loginStatus.setExpireTime("登录到期，请重新登录");
@@ -219,16 +242,22 @@ public class TasksServiceImpl implements TasksService{
                         // —— 辅助函数必须定义在这里 ——
                         const getXPath = (el) => {
                                 if (el.nodeType !== 1) return '';
+                                const tag = el.tagName.toLowerCase();
+                                // 优先语义定位，抗页面结构变化；最后兜底绝对路径（含 /html 前缀）
                                 if (el.id) return `//*[@id="${el.id}"]`;
+                                if (el.name) return `//${tag}[@name="${el.name}"]`;
+                                if (el.placeholder) return `//${tag}[@placeholder="${el.placeholder}"]`;
+                                if (el.type) return `//${tag}[@type="${el.type}"]`;
                                 const parts = [];
                                 let node = el;
-                                while (node && node.nodeType === 1 && node !== document.documentElement) {
+                                while (node && node.nodeType === 1) {   // 走到 <html>，保证绝对路径以 /html 开头
                                 let idx = 1, sib = node.previousElementSibling;
                                 while (sib) {
                                 if (sib.tagName === node.tagName) idx++;
                                 sib = sib.previousElementSibling;
                                 }
-                                parts.unshift(`${node.tagName.toLowerCase()}[${idx}]`);
+                                const t = node.tagName.toLowerCase();
+                                parts.unshift(node === document.documentElement ? t : `${t}[${idx}]`);
                                 node = node.parentElement;
                                 }
                                 return '/' + parts.join('/');
@@ -283,7 +312,7 @@ public class TasksServiceImpl implements TasksService{
     }
 
     private String captchaImageByXpath(Page page,ElementRef captchaImage){
-        Locator locator = page.locator("xpath=" + captchaImage.xpath());
+        Locator locator = page.locator(captchaImage.css());
         locator.waitFor(new Locator.WaitForOptions()
               .setState(WaitForSelectorState.VISIBLE)
               .setTimeout(8000));

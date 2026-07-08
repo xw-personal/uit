@@ -272,7 +272,7 @@ class UitcApplicationTests {
         }
         @Test
         void testLoginAnalyze(){
-                tasksService.login("https://10.10.19.210/login");
+                tasksService.analyzer("https://10.10.19.210/login");
         }
 
         @Autowired

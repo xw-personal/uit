@@ -10,7 +10,8 @@ public interface TasksService {
 
     void processTask(LoginUser entity);
 
-    void login(String url);
+    void analyzer(String url);
+
 
     LoginStatus loginStatus();
 }
