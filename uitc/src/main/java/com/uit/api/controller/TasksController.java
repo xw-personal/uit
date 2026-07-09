@@ -1,5 +1,6 @@
 package com.uit.api.controller;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,9 +41,9 @@ public class TasksController {
     }
 
     @PostMapping
-    public String postMethodName(@RequestBody LoginUser user) {
+    public String postMethodName(@RequestBody String task) {
         //TODO: process POST request
-        tasksService.processTask(user);
+        tasksService.processTask(task);
         return "";
     }
 

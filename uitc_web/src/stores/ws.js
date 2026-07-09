@@ -11,6 +11,7 @@ import { useAuthStore } from './auth'
 export const useWsStore = defineStore('ws', () => {
   const connected = ref(false)
   const analysisResult = ref(null)   // 最新一条 UrlElements
+  const loginStatus = ref(null)      // LOGIN_STATUS: { status, message, data? }
   const messages = ref([])            // 事件日志，最新在前
   let client = null
 
@@ -34,7 +35,12 @@ export const useWsStore = defineStore('ws', () => {
         client.subscribe('/user/queue/analysis', (m) => {
           let body
           try { body = JSON.parse(m.body) } catch { body = m.body }
-          analysisResult.value = body
+          if (body.type === 'LOGIN_STATUS') {
+            loginStatus.value = body.components
+          } else {
+            analysisResult.value = body
+            loginStatus.value = null
+          }
           log('RECV', `/user/queue/analysis → ${JSON.stringify(body).slice(0, 160)}`, 'recv')
         })
         client.subscribe('/user/queue/kick', (m) => {
@@ -75,5 +81,5 @@ export const useWsStore = defineStore('ws', () => {
     messages.value = []
   }
 
-  return { connected, analysisResult, messages, connect, disconnect, clearMessages }
+  return { connected, analysisResult, loginStatus, messages, connect, disconnect, clearMessages }
 })

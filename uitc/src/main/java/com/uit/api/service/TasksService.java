@@ -8,7 +8,7 @@ import com.uit.api.vo.LoginStatus;
 public interface TasksService {
 
 
-    void processTask(LoginUser entity);
+    void processTask(String msg);
 
     void analyzer(String url);
 

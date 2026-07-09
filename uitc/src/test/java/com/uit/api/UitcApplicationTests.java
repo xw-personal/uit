@@ -4,7 +4,6 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
-import org.json.JSONObject;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

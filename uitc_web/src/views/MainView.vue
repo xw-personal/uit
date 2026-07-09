@@ -59,7 +59,7 @@ function onLogout() {
 
     <section class="panel">
       <h2>分析结果</h2>
-      <UrlAnalysisResult :data="ws.analysisResult" />
+      <UrlAnalysisResult :data="ws.analysisResult" :login-status="ws.loginStatus" />
     </section>
 
     <section class="panel">

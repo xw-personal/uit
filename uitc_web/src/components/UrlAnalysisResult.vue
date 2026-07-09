@@ -3,14 +3,15 @@ import { reactive, computed, ref, watch } from 'vue'
 import { submitLogin } from '../api/tasks'
 
 const props = defineProps({
-  // UrlElements: { type, taskId, components:[{id, type, config}] }
-  data: { type: Object, default: null }
+  data: { type: Object, default: null },
+  loginStatus: { type: Object, default: null }
 })
 
-const formData = reactive({})       // { [component.id]: 用户输入 }
+const formData = reactive({})
 const submitting = ref(false)
 const msg = ref('')
 const err = ref('')
+const loginSuccess = ref(false)
 
 const components = computed(() => props.data?.components || [])
 
@@ -22,15 +23,31 @@ const typeLabel = {
   SLIDER: '滑块/点选'
 }
 
-// 新任务到来时重置表单
 watch(() => props.data?.taskId, () => {
   Object.keys(formData).forEach(k => delete formData[k])
   components.value.forEach(c => { formData[c.id] = '' })
   msg.value = ''
   err.value = ''
+  loginSuccess.value = false
 }, { immediate: true })
 
-// password 类字段用密码框遮挡
+watch(() => props.loginStatus, (status) => {
+  if (!status) return
+  if (status.status === true) {
+    alert(status.message)
+    loginSuccess.value = true
+  } else {
+    alert(status.message)
+    if (props.data?.type === 'PASSWORD_CAPTCHA' && status.data?.captchaImage) {
+      const captchaComp = components.value.find(c => c.type === 'captcha' || c.id === 'captcha')
+      if (captchaComp) {
+        captchaComp.config = captchaComp.config || {}
+        captchaComp.config.captchaImage = status.data.captchaImage
+      }
+    }
+  }
+}, { deep: true })
+
 function inputType(id) {
   return id === 'password' ? 'password' : 'text'
 }
@@ -45,7 +62,6 @@ async function onSubmit() {
   if (!props.data?.taskId) { err.value = '无 taskId'; return }
   submitting.value = true
   try {
-    // 只取 components 的 id 对应字段，组装成 loginUser
     const loginUser = {}
     components.value.forEach(c => { loginUser[c.id] = formData[c.id] ?? '' })
     await submitLogin(props.data.taskId, loginUser)
@@ -70,26 +86,25 @@ async function onSubmit() {
 
       <h3>请填写登录信息</h3>
       <div v-for="c in components" :key="c.id" class="field">
-        <!-- captcha 类型:显示验证码图 + 输入框 -->
         <template v-if="c.type === 'captcha'">
           <label>{{ c.id }}</label>
           <div class="captcha-row">
             <img v-if="captchaImage(c)" :src="captchaImage(c)" class="captcha-img" alt="captcha" />
-            <input v-model="formData[c.id]" :type="inputType(c.id)" :placeholder="c.id" />
+            <input v-model="formData[c.id]" :type="inputType(c.id)" :placeholder="c.id" :disabled="loginSuccess" />
           </div>
         </template>
-        <!-- input 类型:普通输入框 -->
         <template v-else>
           <label>{{ c.id }}</label>
-          <input v-model="formData[c.id]" :type="inputType(c.id)" :placeholder="c.id" />
+          <input v-model="formData[c.id]" :type="inputType(c.id)" :placeholder="c.id" :disabled="loginSuccess" />
         </template>
       </div>
 
-      <button class="submit" :disabled="submitting" @click="onSubmit">
-        {{ submitting ? '提交中…' : '提交' }}
+      <button class="submit" :disabled="submitting || loginSuccess" @click="onSubmit">
+        {{ submitting ? '提交中…' : loginSuccess ? '已登录' : '提交' }}
       </button>
       <div v-if="err" class="err-text">{{ err }}</div>
       <div v-else-if="msg" class="ok-text">{{ msg }}</div>
+      <div v-if="loginSuccess" class="ok-text">登录成功，可关闭此页面</div>
     </template>
   </div>
 </template>

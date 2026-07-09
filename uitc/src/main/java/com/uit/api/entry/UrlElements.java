@@ -1,6 +1,6 @@
 package com.uit.api.entry;
 
-import java.util.List;
+
 import java.util.Map;
 
 import lombok.Data;
@@ -12,7 +12,7 @@ public class UrlElements<T> {
     
     private String taskId;
 
-    private List<T> components;
+    private T components;
     
     @Data
     public static class UIComponent {

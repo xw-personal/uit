@@ -1,13 +1,18 @@
 package com.uit.api.utils;
 
 import java.nio.file.Path;
+import java.util.Base64;
 
 import com.microsoft.playwright.BrowserContext;
+import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
+import com.microsoft.playwright.options.ScreenshotType;
+import com.microsoft.playwright.options.WaitForSelectorState;
+import com.uit.agentcore.agents.ExploerAnalyzer.ElementRef;
 import com.uit.api.entry.LoginUser;
 import com.uit.api.entry.User;
 
-public class BrowserOperation {
+public class BrowserUtils {
 
 
     public static void login(LoginUser user, BrowserContext context) {
@@ -28,5 +33,24 @@ public class BrowserOperation {
 
     private static Boolean isXPathExists(Page page, String locator){
         return page.locator(locator).count() > 0;
+    }
+
+
+    public static String captchaImageByXpath(Page page,ElementRef captchaImage){
+        Locator locator = page.locator(captchaImage.css());
+        locator.waitFor(new Locator.WaitForOptions()
+              .setState(WaitForSelectorState.VISIBLE)
+              .setTimeout(1000));
+        try {
+            Object tag = locator.evaluate("el => el.tagName");
+            if ("IMG".equalsIgnoreCase(String.valueOf(tag))) {
+                page.waitForFunction("el => el.complete && el.naturalWidth > 0", locator,
+                        new Page.WaitForFunctionOptions().setTimeout(8000));
+            }
+        } catch (Exception ignore) {
+            // 非 img 元素或超时,继续走截图
+        }
+        byte[] png = locator.screenshot(new Locator.ScreenshotOptions().setType(ScreenshotType.PNG));      
+        return "data:image/png;base64," + Base64.getEncoder().encodeToString(png);
     }
 }

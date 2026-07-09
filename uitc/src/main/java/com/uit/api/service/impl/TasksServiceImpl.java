@@ -33,13 +33,14 @@ import com.microsoft.playwright.options.WaitForSelectorState;
 import com.uit.agentcore.agents.ExploerAnalyzer;
 import com.uit.agentcore.agents.ExploerAnalyzer.ElementRef;
 import com.uit.agentcore.agents.ExploerAnalyzer.LoginAnalysis;
+import com.uit.api.common.LoginType;
 import com.uit.api.common.TaskPendingManager;
 import com.uit.api.entry.LoginUser;
 import com.uit.api.entry.UrlElements;
 import com.uit.api.entry.UrlElements.UIComponent;
 import com.uit.api.handler.BusinessException;
 import com.uit.api.service.TasksService;
-import com.uit.api.utils.BrowserOperation;
+import com.uit.api.utils.BrowserUtils;
 import com.uit.api.utils.RedisKeyPrefix;
 import com.uit.api.utils.UserContext;
 import com.uit.api.vo.LoginStatus;
@@ -65,32 +66,37 @@ public class TasksServiceImpl implements TasksService{
 
 
     @Override
-    public void processTask(LoginUser user) {
-        // Implement the logic to process the task here
-        Playwright playwright = Playwright.create();
-        BrowserType.LaunchOptions options = new BrowserType.LaunchOptions()
-                .setHeadless(false)      // 显示浏览器窗口
-                .setChannel("chrome")    // 使用 Chrome
-                .setSlowMo(500);   
-        Browser browser = playwright.chromium().launch(options);
-        //创建独立的上下文，并设置 setIgnoreHTTPSErrors(true)：忽略 HTTPS 证书错误
-        BrowserContext context = browser.newContext(
-                new Browser.NewContextOptions().setIgnoreHTTPSErrors(true)
-                );
-        BrowserOperation.login(user, context);
+    public void processTask(String msg) {
+        String userId = UserContext.getUser().getId();
+        try(Playwright playwright = Playwright.create()){
+            BrowserType.LaunchOptions options = new BrowserType.LaunchOptions()
+                    .setHeadless(false)      // 显示浏览器窗口
+                    .setChannel("chrome")    // 使用 Chrome
+                    .setSlowMo(100);   
+            Browser browser = playwright.chromium().launch(options);
+            String auth = (String)redisTemplate.opsForValue().get(RedisKeyPrefix.LOGIN_AUTH + userId);
+            //创建独立的上下文，并设置 setIgnoreHTTPSErrors(true)：忽略 HTTPS 证书错误
+            BrowserContext context = browser.newContext(
+                    new Browser.NewContextOptions().setIgnoreHTTPSErrors(true).setStorageState(auth)
+                    );
+            
+            
+        }catch(Exception e){
+            log.error("任务失败：" + e);
+        }
         
     }
 
     @Override
     public void analyzer(String url) {
         String taskId = UUID.randomUUID().toString();
-        CompletableFuture<LoginUser> future = new CompletableFuture<>();
+        
         log.info("开始处理任务，taskId: " + taskId);
         String userId = UserContext.getUser().getId();
         CompletableFuture.runAsync(() ->{
             try (Playwright playwright = Playwright.create()){
                 BrowserType.LaunchOptions options = new BrowserType.LaunchOptions()
-                    .setHeadless(true)      // 隐藏浏览器窗口
+                    .setHeadless(false)      // 隐藏浏览器窗口
                     .setChannel("chrome")    // 使用 Chrome
                     .setSlowMo(100);
                 Browser browser = playwright.chromium().launch(options);
@@ -106,7 +112,7 @@ public class TasksServiceImpl implements TasksService{
                 LoginAnalysis loginAnalysis = analyzer.analyze(elementsJson);
                 
                 log.info("登录页分析结果："+loginAnalysis);
-                UrlElements<UIComponent> urlElement = new UrlElements<UIComponent>();
+                UrlElements<List<UIComponent>> urlElement = new UrlElements<>();
                 urlElement.setTaskId(taskId);
                 redisTemplate.opsForHash().put(RedisKeyPrefix.TASK_STATE + taskId, "LoginType", loginAnalysis.loginType());
                 redisTemplate.opsForHash().put(RedisKeyPrefix.TASK_STATE + taskId, "status", 1);
@@ -123,7 +129,8 @@ public class TasksServiceImpl implements TasksService{
                         
                         break;
                     case PASSWORD_CAPTCHA:
-                        String png = this.captchaImageByXpath(page,loginAnalysis.fields().captchaImage());
+                        String png = BrowserUtils.captchaImageByXpath(page,loginAnalysis.fields().captchaImage());
+                        log.info("[CAPTCHA] 截图时 src={}", png);
                         urlElement.setType("PASSWORD_CAPTCHA");                      
                         urlElement.setComponents(
                             List.of(
@@ -158,39 +165,47 @@ public class TasksServiceImpl implements TasksService{
                 }
                 LoginUser users = new LoginUser();
                 try {
-                    taskPendingManager.put(taskId, future);
-                    users = future.get();
+                    UrlElements<Map<String,Object>> urlElementStatus = new UrlElements<>();
+                    while (true) {
+                        CompletableFuture<LoginUser> future = new CompletableFuture<>();
+                        taskPendingManager.put(taskId, future);
+                        users = future.get();
+                        users.setUrl(url);
+                        String msg = loginAnalysis.loginType().login(page, loginAnalysis.fields(), users);
+
+                        if (msg.contains("成功")) break;
+                        urlElementStatus.setType("LOGIN_STATUS");
+                        urlElementStatus.setComponents(Map.of(
+                            "status",false,
+                            "message",msg,
+                            "data", loginAnalysis.loginType() == LoginType.PASSWORD_CAPTCHA?
+                                    Map.of(
+                                        "captchaType", "TEXT_IMAGE",
+                                        "captchaImage",BrowserUtils.captchaImageByXpath(page,loginAnalysis.fields().captchaImage())
+                                    ):
+                                    ""
+                        ));
+                        websocketService.pushAnalysisResult(userId, urlElementStatus);
+                    }
+                    taskPendingManager.remove(taskId);
+                    String stateJson = context.storageState();
+                    redisTemplate.opsForValue().set(RedisKeyPrefix.LOGIN_AUTH + userId, stateJson);
+                    redisTemplate.opsForHash().put(RedisKeyPrefix.TASK_STATE + taskId, "status", 0);
+                    urlElementStatus.setType("LOGIN_STATUS");
+                    urlElementStatus.setComponents(Map.of(
+                        "status",true,
+                        "message","登录成功"
+                    ));
+                    websocketService.pushAnalysisResult(userId, urlElementStatus);
                 } catch (Exception e) {
                     // TODO: handle exception
                 }
-                users.setUrl(url);
-                loginAnalysis.loginType().login(page, loginAnalysis.fields(), users);
-                String stateJson = context.storageState();
-                redisTemplate.opsForValue().set(RedisKeyPrefix.LOGIN_AUTH + userId, stateJson);
-                redisTemplate.opsForHash().put(RedisKeyPrefix.TASK_STATE + taskId, "status", 0);
-                UrlElements<Integer> urlElementStatus = new UrlElements<Integer>();
-                urlElementStatus.setType("LOGIN_STATUS");
-                urlElementStatus.setComponents(
-                            List.of(0)
-                        );
-                websocketService.pushAnalysisResult(userId, urlElementStatus);
+                
             }catch (Exception e) {
                 log.error("异步任务执行失败", e);
             }
             
         });
-        
-
-        // List<Locator> textboxes = page.getByRole(AriaRole.TEXTBOX).all();
-        // for (Locator locator : textboxes) {
-        //     String placeholder = locator.getAttribute("placeholder");
-        //     new GetByRoleOptions().setName(placeholder);
-            
-        // }
-        // if (page.url().equals(user.getUrl())){
-        //     System.out.println("登录失败，请检测账号密码是否正确，或关闭登录验证码");
-        // }
-        // context.storageState(new BrowserContext.StorageStateOptions().setPath(Path.of("auth.json")));
     }
 
     public LoginStatus loginStatus() {
@@ -310,22 +325,6 @@ public class TasksServiceImpl implements TasksService{
         }
         
     }
+    
 
-    private String captchaImageByXpath(Page page,ElementRef captchaImage){
-        Locator locator = page.locator(captchaImage.css());
-        locator.waitFor(new Locator.WaitForOptions()
-              .setState(WaitForSelectorState.VISIBLE)
-              .setTimeout(8000));
-        try {
-            Object tag = locator.evaluate("el => el.tagName");
-            if ("IMG".equalsIgnoreCase(String.valueOf(tag))) {
-                page.waitForFunction("el => el.complete && el.naturalWidth > 0", locator,
-                        new Page.WaitForFunctionOptions().setTimeout(8000));
-            }
-        } catch (Exception ignore) {
-            // 非 img 元素或超时,继续走截图
-        }
-        byte[] png = locator.screenshot(new Locator.ScreenshotOptions().setType(ScreenshotType.PNG));      
-        return "data:image/png;base64," + Base64.getEncoder().encodeToString(png);
-    }
 }
