@@ -1,10 +1,13 @@
 package com.uit.api.controller;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.http.MediaType;
+import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -17,13 +20,19 @@ import com.uit.api.entry.Result;
 import com.uit.api.entry.User;
 import com.uit.api.service.TasksService;
 import com.uit.api.utils.RedisKeyPrefix;
+import com.uit.api.utils.UserContext;
 import com.uit.api.vo.LoginStatus;
+
+import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Sinks;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
 
+@Slf4j
 @RestController
 @RequestMapping("/tasks")
 public class TasksController {
@@ -40,11 +49,13 @@ public class TasksController {
         this.redisTemplate = redisTemplate;
     }
 
-    @PostMapping
-    public String postMethodName(@RequestBody String task) {
-        //TODO: process POST request
-        tasksService.processTask(task);
-        return "";
+    @PostMapping(value = "/run", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<ServerSentEvent<Object>> postMethodName(@RequestBody String task) {
+        Sinks.Many<Object> sink = Sinks.many().multicast().onBackpressureBuffer();
+        tasksService.processTask(task,sink);
+        return sink.asFlux()
+                .map(e -> ServerSentEvent.builder(e).event("progress").build())
+                .doFinally(s -> log.info("SSE 流结束：{} " ,s));
     }
 
     @PostMapping("/url")

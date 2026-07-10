@@ -6,5 +6,5 @@ import dev.langchain4j.agentic.Agent;
 
 public interface SequenceAgents  {
     @Agent
-    String Sequence();
+    String Sequence(String userMsg);
 }

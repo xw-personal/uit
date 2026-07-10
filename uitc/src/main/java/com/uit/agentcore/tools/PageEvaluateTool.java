@@ -1,12 +1,10 @@
 package com.uit.agentcore.tools;
 
-import java.util.Map;
 
 import com.microsoft.playwright.Page;
 
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
-import dev.langchain4j.agentic.declarative.HumanInTheLoop;
 
 public class PageEvaluateTool {
     private final Page page;
@@ -14,7 +12,7 @@ public class PageEvaluateTool {
     public PageEvaluateTool(Page page) {
         this.page = page;
     }
-    @Tool("在当前页面执行一段 JavaScript 并返回结果(JSON)。可用于 DOM 采集、读取元素属性/" +
+    @Tool(name = "browser_evaluateJs",value = "在当前页面执行一段 JavaScript 并返回结果(JSON)。可用于 DOM 采集、读取元素属性/" +
             "坐标、调用 elementFromPoint 等。script 是函数体或表达式，如 " +
             "() => document.querySelectorAll('button').length")
     public Object evaluateJs(@P("要执行的 JS，可以是箭头函数 () => {...} 或表达式") String script){

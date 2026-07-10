@@ -1,8 +1,5 @@
 package com.uit.agentcore;
 
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-
 import com.uit.agentcore.agents.CaseDesignerAgent;
 import com.uit.agentcore.agents.ExploerAnalyzer;
 import com.uit.agentcore.agents.ScriptAgent;
@@ -10,14 +7,15 @@ import com.uit.agentcore.agents.SequenceAgents;
 import com.uit.agentcore.agents.UIExplorerAgent;
 
 import dev.langchain4j.agentic.AgenticServices;
+import dev.langchain4j.agentic.observability.AgentListener;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.service.AiServices;
 
-@Configuration
-public class SequenceAgentService {
 
-    @Bean
-    public SequenceAgents SequenceAgentServiceBuilder(ChatModel chatModel){
+public class AgentService {
+
+
+    public static SequenceAgents SequenceAgentServiceBuilder(ChatModel chatModel,AgentListener listener){
         UIExplorerAgent uiExplorer = AgenticServices
                 .agentBuilder(UIExplorerAgent.class)
                 .chatModel(chatModel)
@@ -40,11 +38,12 @@ public class SequenceAgentService {
             .sequenceBuilder(SequenceAgents.class) // 传入接口类型
             .subAgents(uiExplorer, caseDesigner, script)
             .outputKey("story")
+            .listener(listener)
             .build();
     }
 
-    @Bean
-    public ExploerAnalyzer analyzer(ChatModel chatModel){
+
+    public static ExploerAnalyzer analyzer(ChatModel chatModel){
         return AiServices
                 .builder(ExploerAnalyzer.class)
                 .chatModel(chatModel)

@@ -156,6 +156,22 @@
 			<version>1.15.0-beta25</version>
 			<scope>compile</scope>
 		</dependency>
+
+		<!-- Source: https://mvnrepository.com/artifact/io.projectreactor/reactor-core -->
+		<dependency>
+			<groupId>io.projectreactor</groupId>
+			<artifactId>reactor-core</artifactId>
+			<version>3.8.6</version>
+			<scope>compile</scope>
+		</dependency>
+
+		<!-- Source: https://mvnrepository.com/artifact/org.apache.fesod/fesod-sheet -->
+		<dependency>
+			<groupId>org.apache.fesod</groupId>
+			<artifactId>fesod-sheet</artifactId>
+			<version>2.0.2-incubating</version>
+			<scope>compile</scope>
+		</dependency>
 	</dependencies>
 
 	<build>

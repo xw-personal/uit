@@ -2,6 +2,7 @@ package com.uit.api.common;
 
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
+import com.microsoft.playwright.TimeoutError;
 import com.uit.agentcore.agents.ExploerAnalyzer.Fields;
 import com.uit.api.entry.LoginUser;
 
@@ -15,9 +16,18 @@ public enum LoginType {
             page.locator(fields.username().css()).fill(user.getAccount());
             page.locator(fields.password().css()).fill(user.getPassword());
             page.locator(fields.submit().css()).click();
-            Locator toast = page.locator(".ant-message");
-            toast.waitFor(new Locator.WaitForOptions().setTimeout(2000));
-            String message = toast.textContent();
+            String message;
+            try {
+                Locator toast = page.locator(".ant-message");
+                toast.waitFor(new Locator.WaitForOptions().setTimeout(2000));
+                message = toast.textContent();
+            } catch (TimeoutError e) {
+                if (!user.getUrl().equals(page.url())) {
+                    message = "登录成功";
+                }else{
+                    message = "登录失败，页面未跳转";
+                }
+            }
             log.info("PASSWORD_ONLY登录:"+message);
             return message;
         }
@@ -30,9 +40,18 @@ public enum LoginType {
             page.locator(fields.password().css()).fill(user.getPassword());
             page.locator(fields.captchaInput().css()).fill(user.getCaptcha());
             page.locator(fields.submit().css()).click();
-            Locator toast = page.locator(".ant-message");
-            toast.waitFor(new Locator.WaitForOptions().setTimeout(2000));
-            String message = toast.textContent();
+            String message;
+            try {
+                Locator toast = page.locator(".ant-message");
+                toast.waitFor(new Locator.WaitForOptions().setTimeout(2000));
+                message = toast.textContent();
+            } catch (TimeoutError e) {
+                if (!user.getUrl().equals(page.url())) {
+                    message = "登录成功";
+                }else{
+                    message = "登录失败，页面未跳转";
+                }
+            }
             log.info("PASSWORD_CAPTCHA登录:"+message);
             return message;
         }

@@ -30,6 +30,10 @@ langchain4j:
         base-url: ${LLM_BASE_URL:https://ark.cn-beijing.volces.com/api/coding/v3}
         api-key: ${LLM_API_KEY:change-me}
         model-name: ${LLM_MODEL:GLM-5.2}
-        
+
 mybatis:
   type-handlers-package: com.uit.api.handler
+
+logging:
+  level:
+    com.example.mapper: DEBUG

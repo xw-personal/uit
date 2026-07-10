@@ -30,9 +30,14 @@ import com.microsoft.playwright.Playwright;
 import com.microsoft.playwright.options.LoadState;
 import com.microsoft.playwright.options.ScreenshotType;
 import com.microsoft.playwright.options.WaitForSelectorState;
+import com.uit.agentcore.AgentService;
 import com.uit.agentcore.agents.ExploerAnalyzer;
+import com.uit.agentcore.agents.SequenceAgents;
 import com.uit.agentcore.agents.ExploerAnalyzer.ElementRef;
 import com.uit.agentcore.agents.ExploerAnalyzer.LoginAnalysis;
+import com.uit.agentcore.tools.PageEvaluateTool;
+import com.uit.agentcore.tools.PlaywrightAoyaExecutionEngine;
+import com.uit.api.common.AgentProgressListenerFactory;
 import com.uit.api.common.LoginType;
 import com.uit.api.common.TaskPendingManager;
 import com.uit.api.entry.LoginUser;
@@ -46,27 +51,37 @@ import com.uit.api.utils.UserContext;
 import com.uit.api.vo.LoginStatus;
 import com.uit.api.websocket.WebsocketService;
 
+import dev.langchain4j.agentic.observability.AgentListener;
+import dev.langchain4j.community.tool.browseruse.BrowserUseTool;
+import dev.langchain4j.model.chat.ChatModel;
 import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Sinks;
 
 @Slf4j
 @Service
 public class TasksServiceImpl implements TasksService{
 
-    private final ExploerAnalyzer analyzer;
+    private final ChatModel chatModel;
     private final WebsocketService websocketService;
     private final RedisTemplate<String,Object> redisTemplate;
     private final TaskPendingManager taskPendingManager;
+    private final AgentProgressListenerFactory listenerFactory;
 
-    public TasksServiceImpl(ExploerAnalyzer analyzer,WebsocketService websocketService,RedisTemplate<String,Object> redisTemplate,TaskPendingManager taskPendingManager) {
-        this.analyzer = analyzer;
+    public TasksServiceImpl(WebsocketService websocketService,
+                            RedisTemplate<String,Object> redisTemplate,
+                            TaskPendingManager taskPendingManager,
+                            ChatModel chatModel,
+                            AgentProgressListenerFactory listenerFactory) {
         this.websocketService = websocketService;
         this.redisTemplate = redisTemplate;
         this.taskPendingManager = taskPendingManager;
+        this.listenerFactory = listenerFactory;
+        this.chatModel = chatModel;
     }
 
 
     @Override
-    public void processTask(String msg) {
+    public void processTask(String msg, Sinks.Many<Object> sink) {
         String userId = UserContext.getUser().getId();
         try(Playwright playwright = Playwright.create()){
             BrowserType.LaunchOptions options = new BrowserType.LaunchOptions()
@@ -79,10 +94,28 @@ public class TasksServiceImpl implements TasksService{
             BrowserContext context = browser.newContext(
                     new Browser.NewContextOptions().setIgnoreHTTPSErrors(true).setStorageState(auth)
                     );
+            PlaywrightAoyaExecutionEngine engine = PlaywrightAoyaExecutionEngine.builder().browser(context).build();
+            Page page = engine.getPage();
+            BrowserUseTool browserUseTool = BrowserUseTool.from(
+                engine
+            );
+            PageEvaluateTool pageEvaluateTool = new PageEvaluateTool(page);
             
+            CompletableFuture.runAsync(()->{
+                try {
+                    AgentListener listener = listenerFactory.forSink(userId, sink);
+                    SequenceAgents agents = AgentService.SequenceAgentServiceBuilder(chatModel, listener);
+                    String result = agents.Sequence(msg);
+                    sink.tryEmitNext(Map.of("phase", "finished", "result", result));
+                } catch (Exception e) {
+                    sink.tryEmitNext(Map.of("phase", "error", "message", e.getMessage()));
+                } finally{
+                    sink.tryEmitComplete();
+                }
+            });
             
         }catch(Exception e){
-            log.error("任务失败：" + e);
+            log.error("浏览器初始化失败：" + e);
         }
         
     }
@@ -109,7 +142,7 @@ public class TasksServiceImpl implements TasksService{
                 page.waitForLoadState(LoadState.NETWORKIDLE);
                 String elementsJson = this.getElements(page);
                 log.info("开始分析登录页...");
-                LoginAnalysis loginAnalysis = analyzer.analyze(elementsJson);
+                LoginAnalysis loginAnalysis =  AgentService.analyzer(chatModel).analyze(elementsJson);
                 
                 log.info("登录页分析结果："+loginAnalysis);
                 UrlElements<List<UIComponent>> urlElement = new UrlElements<>();

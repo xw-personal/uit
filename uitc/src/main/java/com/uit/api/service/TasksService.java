@@ -5,10 +5,12 @@ import com.uit.api.entry.Result;
 import com.uit.api.entry.User;
 import com.uit.api.vo.LoginStatus;
 
+import reactor.core.publisher.Sinks;
+
 public interface TasksService {
 
 
-    void processTask(String msg);
+    void processTask(String msg, Sinks.Many<Object> sink);
 
     void analyzer(String url);
 
