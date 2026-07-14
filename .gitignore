@@ -6,6 +6,7 @@ out/
 !**/src/test/**/target/
 !**/src/main/**/build/
 !**/src/test/**/build/
+/screen_parser/
 
 # ===== Maven wrapper jar =====
 .mvn/wrapper/maven-wrapper.jar

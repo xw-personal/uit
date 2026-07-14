@@ -1,0 +1,42 @@
+module:
+  name: "搜索"
+  url: "https://10.10.19.210/search"
+
+# 数据库:按业务分组,组内按等价类分类,每条数据带自己的预期
+dataLibrary:
+  search:                            # 业务分组
+    effective:                       # 有效等价类
+      - value: "正常关键词"
+        expected: "显示搜索结果"
+    invalid:                         # 无效等价类
+      - value: ""
+        expected: "提示不能为空"
+      - value: "' OR 1=1--"
+        expected: "提示非法字符"
+    boundary:                        # 边界值
+      - value: "A"
+        expected: "显示结果"
+
+cases:
+  - id: "search_001"
+    title: "搜索功能"
+    type: FUNCTIONAL                 # FUNCTIONAL/BOUNDARY/EXCEPTION
+    priority: P0                     # P0/P1/P2
+    depends_on: ["login_001"]        # 依赖的用例(明确字段,不混进 precondition)
+    precondition: "已登录"             # 状态前置
+    dataGroup: "search"              # 声明用哪个数据组,框架迭代它
+    steps:
+      - no: 1
+        description: "输入搜索关键词"
+        action: fill
+        target: "#search-input"
+        value: "${search.value}"     # 引用当前数据项的 value
+      - no: 2
+        description: "点击搜索"
+        action: click
+        target: "#search-btn"
+        wait: "networkidle"
+    assertions:
+      - target: ".result-list"
+        matcher: visible             # contains/equals/visible/notVisible
+        expected: "${search.expected}"   # 引用当前数据项的 expected
