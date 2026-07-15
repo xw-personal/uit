@@ -37,3 +37,7 @@ mybatis:
 logging:
   level:
     com.example.mapper: DEBUG
+
+yolo:
+  service:
+    base-url: http://localhost:8000

@@ -6,7 +6,9 @@ out/
 !**/src/test/**/target/
 !**/src/main/**/build/
 !**/src/test/**/build/
-/screen_parser/
+/screen_parser/.venv
+/screen_parser/__pycache__
+
 
 # ===== Maven wrapper jar =====
 .mvn/wrapper/maven-wrapper.jar
@@ -39,6 +41,7 @@ auth-state.json
 *.auth.json
 .env
 .env.*
+*.pt
 application-local.yml
 application-secret.yml
 
