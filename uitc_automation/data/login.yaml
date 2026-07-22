@@ -1,0 +1,32 @@
+module:
+  name: "登录"
+  url: "https://10.10.19.210/login"
+
+cases:
+  - title: "登录"
+    steps:
+      - seq: 1
+        description: "输入账号"
+        action: fill
+        target: "#Login > div.login-wrap > div > div.login-wrap-col_right.ant-col.ant-col-10 > div > form > div:nth-child(1) > div > div > span > span > input"
+        value: "${action}"        # ★ 引用本 case dataSet 的 keyword
+      - seq: 2
+        description: "输入密码"
+        action: fill
+        target: "#Login > div.login-wrap > div > div.login-wrap-col_right.ant-col.ant-col-10 > div > form > div:nth-child(2) > div > div > span > span > input"
+        value: "${password}"          # ★ 另一个参数,同属一组数据
+      - seq: 3
+        description: "点击登录"
+        action: click
+        target: "#Login > div.login-wrap > div > div.login-wrap-col_right.ant-col.ant-col-10 > div > form > div:nth-child(3) > div > div > span > button"
+        wait: "networkidle"
+    assertions:
+      - target: ".result-list"
+        matcher: visible
+        expected: "${expected}"
+    dataSet:                        # ★ 本 case 自己的数据,每条一组,框架迭代
+      - test_id: "LOGIN_DD_001"
+        description: "正确账号密码"
+        action: root         # 可选:分类标签,报告用
+        password: "123456Aa"
+        expected: "显示搜索结果"

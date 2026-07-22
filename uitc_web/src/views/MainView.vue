@@ -5,6 +5,7 @@ import { useAuthStore } from '../stores/auth'
 import { useWsStore } from '../stores/ws'
 import { analyzeUrl } from '../api/tasks'
 import UrlAnalysisResult from '../components/UrlAnalysisResult.vue'
+import ChatPanel from '../components/ChatPanel.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -60,6 +61,10 @@ function onLogout() {
     <section class="panel">
       <h2>分析结果</h2>
       <UrlAnalysisResult :data="ws.analysisResult" :login-status="ws.loginStatus" />
+    </section>
+
+    <section class="panel">
+      <ChatPanel />
     </section>
 
     <section class="panel">

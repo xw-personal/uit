@@ -8,7 +8,7 @@ out/
 !**/src/test/**/build/
 /screen_parser/.venv
 /screen_parser/__pycache__
-
+**/__pycache__/
 
 # ===== Maven wrapper jar =====
 .mvn/wrapper/maven-wrapper.jar

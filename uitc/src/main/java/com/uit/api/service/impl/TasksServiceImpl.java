@@ -37,6 +37,8 @@ import com.uit.agentcore.agents.ExploerAnalyzer.ElementRef;
 import com.uit.agentcore.agents.ExploerAnalyzer.LoginAnalysis;
 import com.uit.agentcore.tools.PageEvaluateTool;
 import com.uit.agentcore.tools.PlaywrightAoyaExecutionEngine;
+import com.uit.agentcore.tools.ImgAnalyzeTool;
+import com.uit.agentcore.tools.ImgAnalyzeTool.ImgAnalyzeResult;
 import com.uit.api.common.AgentProgressListenerFactory;
 import com.uit.api.common.LoginType;
 import com.uit.api.common.TaskPendingManager;
@@ -83,41 +85,41 @@ public class TasksServiceImpl implements TasksService{
     @Override
     public void processTask(String msg, Sinks.Many<Object> sink) {
         String userId = UserContext.getUser().getId();
-        try(Playwright playwright = Playwright.create()){
-            BrowserType.LaunchOptions options = new BrowserType.LaunchOptions()
-                    .setHeadless(false)      // 显示浏览器窗口
-                    .setChannel("chrome")    // 使用 Chrome
-                    .setSlowMo(100);   
-            Browser browser = playwright.chromium().launch(options);
-            String auth = (String)redisTemplate.opsForValue().get(RedisKeyPrefix.LOGIN_AUTH + userId);
-            //创建独立的上下文，并设置 setIgnoreHTTPSErrors(true)：忽略 HTTPS 证书错误
-            BrowserContext context = browser.newContext(
-                    new Browser.NewContextOptions().setIgnoreHTTPSErrors(true).setStorageState(auth)
-                    );
-            PlaywrightAoyaExecutionEngine engine = PlaywrightAoyaExecutionEngine.builder().browser(context).build();
-            Page page = engine.getPage();
-            BrowserUseTool browserUseTool = BrowserUseTool.from(
-                engine
-            );
-            PageEvaluateTool pageEvaluateTool = new PageEvaluateTool(page);
-            
-            CompletableFuture.runAsync(()->{
+        CompletableFuture.runAsync(()->{
+            try(Playwright playwright = Playwright.create()){
+                BrowserType.LaunchOptions options = new BrowserType.LaunchOptions()
+                        .setHeadless(false)      // 显示浏览器窗口
+                        .setChannel("chrome")    // 使用 Chrome
+                        .setSlowMo(100);   
+                Browser browser = playwright.chromium().launch(options);
+                // String auth = (String)redisTemplate.opsForValue().get(RedisKeyPrefix.LOGIN_AUTH + userId);
+                //创建独立的上下文，并设置 setIgnoreHTTPSErrors(true)：忽略 HTTPS 证书错误
+                BrowserContext context = browser.newContext(
+                        new Browser.NewContextOptions().setIgnoreHTTPSErrors(true)//.setStorageState(auth)
+                        );
+                PlaywrightAoyaExecutionEngine engine = PlaywrightAoyaExecutionEngine.builder().browser(context).build();
+                Page page = engine.getPage();
+                BrowserUseTool browserUseTool = BrowserUseTool.from(
+                    engine
+                );
+                PageEvaluateTool pageEvaluateTool = new PageEvaluateTool(page);
+
+                ImgAnalyzeTool imgAnalyzeTool = new ImgAnalyzeTool(page);
+                Map<String,List<Object>> tools = Map.of("UIExplorerTools",List.of(browserUseTool,pageEvaluateTool,imgAnalyzeTool));
                 try {
                     AgentListener listener = listenerFactory.forSink(userId, sink);
-                    SequenceAgents agents = AgentService.SequenceAgentServiceBuilder(chatModel, listener);
+                    SequenceAgents agents = AgentService.SequenceAgentServiceBuilder(chatModel, listener,tools);
                     String result = agents.Sequence(msg);
                     sink.tryEmitNext(Map.of("phase", "finished", "result", result));
                 } catch (Exception e) {
                     sink.tryEmitNext(Map.of("phase", "error", "message", e.getMessage()));
                 } finally{
                     sink.tryEmitComplete();
-                }
-            });
-            
-        }catch(Exception e){
-            log.error("浏览器初始化失败：" + e);
-        }
-        
+                }   
+            }catch(Exception e){
+                log.error("浏览器初始化失败：" + e);
+            }
+        });
     }
 
     @Override

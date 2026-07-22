@@ -1,50 +1,36 @@
-from dataclasses import dataclass,field
+from pydantic import BaseModel
+from typing import Optional
 
-@dataclass
-class DataItem:
-    value: str = ""
-    expected: str = ""
-
-@dataclass
-class DataGroup:
-    effective: list[DataItem] = field(default_factory=list)
-    invalid: list[DataItem] = field(default_factory=list)
-    boundary: list[DataItem] = field(default_factory=list)
-
-@dataclass
-class Step:
-    no: int
+class Step(BaseModel):
+    seq: int = 0
     description: str = ""
     action: str = ""
     target: str = ""
     value: str = ""
-    wait: str = ""
+    wait: Optional[str] = None
 
-@dataclass
-class Assertion:
+class Execute(BaseModel):
+    action: str = ""
+    target: str = ""
+    value: str = ""
+
+class Assertion(BaseModel):
     target: str
-    matcher: str
+    matcher: str = "visible"
     expected: str = ""
 
-@dataclass
-class TestCase:
-    id: str
+class Case(BaseModel):
+    id: str = ""
     title: str = ""
-    type: str = ""
-    priority: str = ""
-    depends_on: list[str] = field(default_factory=list)
-    precondition: str = ""
-    dataGroup: str = ""
-    steps: list[Step] = field(default_factory=list)
-    assertions: list[Assertion] = field(default_factory=list)
+    before: list[Execute] = []
+    after: list[Execute] = []
+    steps: list[Step] = []
+    assertions: list[Assertion] = []
 
-@dataclass
-class Module:
-    name: str = ""
-    url: str = ""
+class Module(BaseModel):
+    name: str
+    url: str
 
-@dataclass
-class TestSuite:
+class TestSuite(BaseModel):
     module: Module
-    dataLibrary: dict[str, DataGroup]
-    cases: list[TestCase]
+    cases: list[Case]

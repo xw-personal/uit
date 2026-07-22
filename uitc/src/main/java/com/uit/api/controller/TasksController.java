@@ -50,9 +50,9 @@ public class TasksController {
     }
 
     @PostMapping(value = "/run", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<ServerSentEvent<Object>> postMethodName(@RequestBody String task) {
+    public Flux<ServerSentEvent<Object>> postMethodName(@RequestBody String msg) {
         Sinks.Many<Object> sink = Sinks.many().multicast().onBackpressureBuffer();
-        tasksService.processTask(task,sink);
+        tasksService.processTask(msg,sink);
         return sink.asFlux()
                 .map(e -> ServerSentEvent.builder(e).event("progress").build())
                 .doFinally(s -> log.info("SSE 流结束：{} " ,s));

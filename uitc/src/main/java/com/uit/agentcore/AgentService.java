@@ -1,5 +1,8 @@
 package com.uit.agentcore;
 
+import java.util.List;
+import java.util.Map;
+
 import com.uit.agentcore.agents.CaseDesignerAgent;
 import com.uit.agentcore.agents.ExploerAnalyzer;
 import com.uit.agentcore.agents.ScriptAgent;
@@ -15,29 +18,32 @@ import dev.langchain4j.service.AiServices;
 public class AgentService {
 
 
-    public static SequenceAgents SequenceAgentServiceBuilder(ChatModel chatModel,AgentListener listener){
+    public static SequenceAgents SequenceAgentServiceBuilder(ChatModel chatModel,AgentListener listener,Map<String,List<Object>> tools){
         UIExplorerAgent uiExplorer = AgenticServices
                 .agentBuilder(UIExplorerAgent.class)
                 .chatModel(chatModel)
-                .outputKey("story")
+                .tools(tools.get("UIExplorerTools").toArray(new Object[0]))
+                .outputKey("elements")
                 .build();
         
         CaseDesignerAgent caseDesigner = AgenticServices
                 .agentBuilder(CaseDesignerAgent.class)
                 .chatModel(chatModel)
-                .outputKey("story")
+                // .tools(tools.get("CaseDesignerTools"))
+                .outputKey("cases")
                 .build();
         
         ScriptAgent script = AgenticServices
                 .agentBuilder(ScriptAgent.class)
                 .chatModel(chatModel)
-                .outputKey("story")
+                // .tools(tools.get("uiExplorerTools"))
+                .outputKey("script")
                 .build();
 
         return AgenticServices
             .sequenceBuilder(SequenceAgents.class) // 传入接口类型
             .subAgents(uiExplorer, caseDesigner, script)
-            .outputKey("story")
+            .outputKey("userMsg")
             .listener(listener)
             .build();
     }

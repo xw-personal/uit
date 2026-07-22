@@ -1,0 +1,109 @@
+module:
+  name: "搜索"
+  url: "https://10.10.19.210/search"
+
+cases:
+  - title: "搜索功能"
+    before: 
+      - action: fill
+        target: "#int"
+        value: "11"
+      - action: chick
+        target: "#btn1"
+    after: 
+      - action: chick
+        target: "#btn2"
+    steps:
+      - seq: 1
+        description: "输入搜索关键词"
+        action: fill
+        target: "#search-input"
+        value: "${keyword}"        # ★ 引用本 case dataSet 的 keyword
+      - seq: 2
+        description: "选择筛选条件"
+        action: select
+        target: "#filter"
+        value: "${filter}"          # ★ 另一个参数,同属一组数据
+      - seq: 3
+        description: "点击搜索"
+        action: click
+        target: "#search-btn"
+        wait: "networkidle"
+    assertions:
+      - target: ".result-list"
+        matcher: visible
+        expected: "${expected}"
+    dataSet:                        # ★ 本 case 自己的数据,每条一组,框架迭代
+      - test_id: "LOGIN_DD_001"
+        description: "正确账号密码"
+        category: effective         # 可选:分类标签,报告用
+        keyword: "正常关键词"
+        filter: "全部"
+        expected: "显示搜索结果"
+      - test_id: "LOGIN_DD_001"
+        description: "正确账号密码"
+        category: invalid
+        keyword: ""
+        filter: "全部"
+        expected: "提示不能为空"
+      - test_id: "LOGIN_DD_001"
+        description: "正确账号密码"
+        category: invalid
+        keyword: "' OR 1=1--"
+        filter: "全部"
+        expected: "提示非法字符"
+      - test_id: "LOGIN_DD_001"
+        description: "正确账号密码"
+        category: boundary
+        keyword: "A"
+        filter: "全部"
+        expected: "显示结果"
+  
+  - title: "搜索功能"
+    before: []
+    after: []
+    steps:
+      - seq: 1
+        description: "输入搜索关键词"
+        action: fill
+        target: "#search-input"
+        value: "${keyword}"        # ★ 引用本 case dataSet 的 keyword
+      - seq: 2
+        description: "选择筛选条件"
+        action: select
+        target: "#filter"
+        value: "${filter}"          # ★ 另一个参数,同属一组数据
+      - seq: 3
+        description: "点击搜索"
+        action: click
+        target: "#search-btn"
+        wait: "networkidle"
+    assertions:
+      - target: ".result-list"
+        matcher: visible
+        expected: "${expected}"
+    dataSet:                        # ★ 本 case 自己的数据,每条一组,框架迭代
+      - test_id: "LOGIN_DD_001"
+        description: "正确账号密码"
+        category: effective         # 可选:分类标签,报告用
+        keyword: "正常关键词"
+        filter: "全部"
+        expected: "显示搜索结果"
+      - test_id: "LOGIN_DD_001"
+        description: "正确账号密码"
+        category: invalid
+        keyword: ""
+        filter: "全部"
+        expected: "提示不能为空"
+      - test_id: "LOGIN_DD_001"
+        description: "正确账号密码"
+        category: invalid
+        keyword: "' OR 1=1--"
+        filter: "全部"
+        expected: "提示非法字符"
+      - test_id: "LOGIN_DD_001"
+        description: "正确账号密码"
+        category: boundary
+        keyword: "A"
+        filter: "全部"
+        expected: "显示结果"
